@@ -3,9 +3,29 @@ import { Terminal } from '../terminal/Terminal.js';
 import { LiveRender } from './live-render.js';
 import { Screen } from '../terminal/Screen.js';
 
+
+interface FakeStdout {
+    writes: string;
+    columns: number;
+    rows: number;
+    isTTY: boolean;
+    write(s: string): void;
+    on(): void;
+    off(): void;
+}
+
+interface FakeStdin {
+    isTTY: boolean;
+    setRawMode(): void;
+    resume(): void;
+    pause(): void;
+    on(): void;
+    off(): void;
+}
+
 describe('LiveRender', () => {
     it('does not emit clearScreen sequences', () => {
-        const fakeStdout: any = {
+        const fakeStdout: FakeStdout  = {
             writes: '',
             columns: 80,
             rows: 24,
@@ -17,7 +37,7 @@ describe('LiveRender', () => {
             off() {},
         };
 
-        const fakeStdin: any = {
+        const fakeStdin: FakeStdin = {
             isTTY: true,
             setRawMode() {},
             resume() {},
@@ -27,8 +47,8 @@ describe('LiveRender', () => {
         };
 
         const terminal = new Terminal({
-            stdout: fakeStdout,
-            stdin: fakeStdin,
+            stdout: fakeStdout as unknown as NodeJS.WriteStream,
+            stdin: fakeStdin as unknown as NodeJS.ReadStream,
         });
 
         const screen = new Screen(80, 24);
@@ -42,7 +62,7 @@ describe('LiveRender', () => {
         terminal.restore();
     });
     it('emits clearLine sequences based on previous render height', () => {
-    const fakeStdout: any = {
+    const fakeStdout: FakeStdout = {
         writes: '',
         columns: 80,
         rows: 24,
@@ -54,7 +74,7 @@ describe('LiveRender', () => {
         off() {},
     };
 
-    const fakeStdin: any = {
+    const fakeStdin: FakeStdin = {
         isTTY: true,
         setRawMode() {},
         resume() {},
@@ -64,8 +84,8 @@ describe('LiveRender', () => {
     };
 
     const terminal = new Terminal({
-        stdout: fakeStdout,
-        stdin: fakeStdin,
+         stdout: fakeStdout as unknown as NodeJS.WriteStream,
+            stdin: fakeStdin as unknown as NodeJS.ReadStream,
     });
 
     const screen = new Screen(80, 24);
@@ -85,7 +105,7 @@ describe('LiveRender', () => {
     });
 
     it('moves cursor up by previous render height', () => {
-    const fakeStdout: any = {
+    const fakeStdout: FakeStdout= {
         writes: '',
         columns: 80,
         rows: 24,
@@ -97,7 +117,7 @@ describe('LiveRender', () => {
         off() {},
     };
 
-    const fakeStdin: any = {
+    const fakeStdin: FakeStdin = {
         isTTY: true,
         setRawMode() {},
         resume() {},
@@ -107,16 +127,13 @@ describe('LiveRender', () => {
     };
 
     const terminal = new Terminal({
-        stdout: fakeStdout,
-        stdin: fakeStdin,
+        stdout: fakeStdout as unknown as NodeJS.WriteStream,
+        stdin: fakeStdin as unknown as NodeJS.ReadStream,
     });
 
-const screen = new Screen(80, 24);
-
-const live = new LiveRender(
-    terminal,
-    screen
-);
+    const screen = new Screen(80, 24);
+    const live = new LiveRender(terminal, screen);
+  
 
     live.render('A\nB\nC');
     fakeStdout.writes = '';
