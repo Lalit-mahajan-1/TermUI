@@ -387,7 +387,7 @@ class CalculatorApp extends Widget {
         }
 
         // Direct inputs
-       if (/\d/.test(key)) {
+       if (key.length === 1 && key >= '0' && key <= '9') {
             this.addDigit(key);
             return true;
         }
