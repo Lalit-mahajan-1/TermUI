@@ -105,6 +105,8 @@ export { useCountdown } from './hooks/useCountdown.js';
 export type { UseCountdownOptions, UseCountdownControls } from './hooks/useCountdown.js';
 export { usePackageManager, detectPackageManager, getPackageManagerCommands } from './hooks/usePackageManager.js';
 export type { PackageManager, PackageManagerCommands } from './hooks/usePackageManager.js';
+export { useFeedback, triggerFeedback, AUDIBLE_FEEDBACK_TYPES } from './hooks/useFeedback.js';
+export type { FeedbackType, FeedbackOptions } from './hooks/useFeedback.js';
 export { useSet } from './hooks/useSet.js';
 export type { UseSetActions } from './hooks/useSet.js';
 export { useThrottle } from './hooks/useThrottle.js';
