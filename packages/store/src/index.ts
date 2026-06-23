@@ -17,6 +17,7 @@ export type {
     Listener,
     Middleware,
     StoreOptions,
+    PersistOptions,
 } from './store.js';
 export type { EqualityFn } from './shallow.js';
 export { shallow } from './shallow.js';
