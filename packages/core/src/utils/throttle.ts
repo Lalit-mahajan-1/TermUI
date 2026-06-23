@@ -34,15 +34,8 @@ export function throttle<T extends (...args: unknown[]) => void>(
             if (leading) func(...args);
             timer = setTimeout(() => {
                 timer = undefined;
-                if (lastArgs && !leading) {
-                    func(...lastArgs);
-                } else if (lastArgs && lastArgs !== args) {
-                    // trailing: fire with the last args seen after a leading call
-                    func(...lastArgs);
-                    lastArgs = undefined;
-                } else {
-                    lastArgs = undefined;
-                }
+                if (lastArgs !== args || !leading) func(...lastArgs!);
+                lastArgs = undefined;
             }, wait);
         }
     } as T & { cancel: () => void };

@@ -49,11 +49,6 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
     return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
 }
 
-function candidateRatio(h: number, s: number, newL: number, bg: Color): number {
-    const [nr, ng, nb] = hslToRgb(h, s, newL);
-    return contrastRatio({ type: 'rgb', r: nr, g: ng, b: nb }, bg);
-}
-
 export function adjustForContrast(fg: Color, bg: Color, targetRatio = 4.5): Color {
     if (fg.type === 'none' || bg.type === 'none') return fg;
 
@@ -67,47 +62,30 @@ export function adjustForContrast(fg: Color, bg: Color, targetRatio = 4.5): Colo
     // and the highest L that meets targetRatio (light end, L→100).
     // Then pick whichever is closer to the original L.
 
-    let darkBest = -1;  // highest L in [0, l) that meets ratio (darken direction)
-    {
-        let lo = 0, hi = Math.floor(l);
-        // Check if darkening can ever meet the target
-        if (candidateRatio(h, s, 0, bg) >= targetRatio) {
-            // Binary search: find the maximum L in [0, floor(l)] that meets ratio
-            // Contrast at L=0 is high, contrast rises again as L falls
-            // Find the boundary: the highest L where ratio is still >= target
-            while (lo < hi) {
-                const mid = Math.ceil((lo + hi) / 2);
-                if (candidateRatio(h, s, mid, bg) >= targetRatio) {
-                    lo = mid; // mid works, try higher
-                } else {
-                    hi = mid - 1; // mid doesn't work, go lower
-                }
-            }
-            if (candidateRatio(h, s, lo, bg) >= targetRatio) {
-                darkBest = lo;
+    const bsearch = (lo: number, hi: number, findMax: boolean): number => {
+        while (lo < hi) {
+            const mid = findMax ? Math.ceil((lo + hi) / 2) : Math.floor((lo + hi) / 2);
+            const [nr, ng, nb] = hslToRgb(h, s, mid);
+            const midRatio = contrastRatio({ type: 'rgb', r: nr, g: ng, b: nb }, bg);
+            if (midRatio >= targetRatio) {
+                if (findMax) lo = mid; else hi = mid;
+            } else {
+                if (findMax) hi = mid - 1; else lo = mid + 1;
             }
         }
-    }
+        const [nr, ng, nb] = hslToRgb(h, s, lo);
+        return contrastRatio({ type: 'rgb', r: nr, g: ng, b: nb }, bg) >= targetRatio ? lo : -1;
+    };
 
-    let lightBest = -1; // lowest L in (l, 100] that meets ratio (lighten direction)
-    {
-        let lo = Math.ceil(l), hi = 100;
-        // Check if lightening can ever meet the target
-        if (candidateRatio(h, s, 100, bg) >= targetRatio) {
-            // Binary search: find the minimum L in [ceil(l), 100] that meets ratio
-            while (lo < hi) {
-                const mid = Math.floor((lo + hi) / 2);
-                if (candidateRatio(h, s, mid, bg) >= targetRatio) {
-                    hi = mid; // mid works, try lower
-                } else {
-                    lo = mid + 1; // mid doesn't work, go higher
-                }
-            }
-            if (candidateRatio(h, s, lo, bg) >= targetRatio) {
-                lightBest = lo;
-            }
-        }
-    }
+    const [nr0, ng0, nb0] = hslToRgb(h, s, 0);
+    const darkBest = contrastRatio({ type: 'rgb', r: nr0, g: ng0, b: nb0 }, bg) >= targetRatio
+        ? bsearch(0, Math.floor(l), true)
+        : -1;
+
+    const [nr100, ng100, nb100] = hslToRgb(h, s, 100);
+    const lightBest = contrastRatio({ type: 'rgb', r: nr100, g: ng100, b: nb100 }, bg) >= targetRatio
+        ? bsearch(Math.ceil(l), 100, false)
+        : -1;
 
     let bestL: number;
 
