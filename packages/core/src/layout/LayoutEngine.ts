@@ -212,7 +212,7 @@ function layoutNode(node: LayoutNode, availWidth: number, availHeight: number, p
         let currentAutoCol = 0;
         const maxAutoRow = Math.max(numCols * 100, 1000);
 
-        for (const child of autoChildren) {
+                for (const child of autoChildren) {
             const s = child.style;
             const colInfo = getSpan(s.gridColumnStart, s.gridColumnEnd);
             const rowInfo = getSpan(s.gridRowStart, s.gridRowEnd);
@@ -266,8 +266,8 @@ function layoutNode(node: LayoutNode, availWidth: number, availHeight: number, p
                     }
                 }
             }
-            
-           if (!placed) {
+
+            if (!placed) {
                 console.warn(
                     `[LayoutEngine] Grid auto-placement exhausted (maxAutoRow=${maxAutoRow}, ` +
                     `numCols=${numCols}): child "${child.id}" was not placed and will be invisible. ` +
@@ -276,8 +276,7 @@ function layoutNode(node: LayoutNode, availWidth: number, availHeight: number, p
             }
         }
 
-        }
-
+        
         let maxRowIndex = 0;
         for (const p of placements) {
             maxRowIndex = Math.max(maxRowIndex, p.row + p.rowSpan - 1);
