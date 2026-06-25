@@ -266,6 +266,16 @@ function layoutNode(node: LayoutNode, availWidth: number, availHeight: number, p
                     }
                 }
             }
+            
+           if (!placed) {
+                console.warn(
+                    `[LayoutEngine] Grid auto-placement exhausted (maxAutoRow=${maxAutoRow}, ` +
+                    `numCols=${numCols}): child "${child.id}" was not placed and will be invisible. ` +
+                    `Check gridTemplateColumns or reduce colSpan values.`
+                );
+            }
+        }
+
         }
 
         let maxRowIndex = 0;
