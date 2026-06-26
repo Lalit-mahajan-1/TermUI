@@ -183,6 +183,8 @@ const demoSlugs = new Set([
     'welcome-screen',
     'setup-flow',
     'spacer',
+    // jsx hooks (live via jsxDemos.tsx)
+    'use-counter',
 ])
 
 export default demoSlugs

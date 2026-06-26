@@ -10,6 +10,15 @@ import { Buffer } from 'buffer'
 import { useEffect, useRef } from 'react'
 import type { RootWidget, AppOptions } from '@termuijs/core'
 import { App, ColorDepth } from '@termuijs/core'
+import { Box, type Widget } from '@termuijs/widgets'
+import {
+    reconcile,
+    reRenderComponent,
+    setRequestRender,
+    collectInputHandlers,
+    unmountAll,
+    type VNode,
+} from '@termuijs/jsx'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
@@ -82,13 +91,17 @@ function makeStdin(term: XTerm): NodeJS.ReadStream {
 
 // ── BrowserPreview React component ────────────────────────────────────
 export interface BrowserPreviewProps {
-    factory: () => RootWidget
+    /** Widget demo: returns a RootWidget mounted directly. */
+    factory?: () => RootWidget
+    /** JSX demo: returns a VNode reconciled + wired for hooks/re-render/input. */
+    jsxFactory?: () => VNode
     mouse?: boolean
     className?: string
 }
 
 export function BrowserPreview({
     factory,
+    jsxFactory,
     mouse = false,
     className,
 }: BrowserPreviewProps) {
@@ -153,9 +166,6 @@ export function BrowserPreview({
         if (typeof proc['off'] !== 'function') proc['off'] = () => process
         if (typeof proc['exit'] !== 'function') proc['exit'] = () => {}
 
-        const widget = factory()
-        const app = new App(widget, opts)
-
         // App never auto-discovers focusables — must register manually before mount()
         // so FocusManager queues the focus event for replay when focus.start() fires
         const registerFocusables = (w: any) => {
@@ -166,7 +176,55 @@ export function BrowserPreview({
                 registerFocusables(child)
             }
         }
-        registerFocusables(widget)
+
+        let app: App
+        let isJsx = false
+
+        if (jsxFactory) {
+            // ── JSX demo: reconcile VNode → widget tree, wire hooks + re-render + input ──
+            // Mirrors @termuijs/jsx render(), but mounts against our shimmed App.
+            isJsx = true
+            const element = jsxFactory()
+            let rootWidget: Widget = reconcile(element)
+            const rootBox = new Box({ flexDirection: 'column', width: '100%', height: '100%' })
+            rootBox.addChild(rootWidget)
+            app = new App(rootBox as unknown as RootWidget, opts)
+
+            // useState/useEffect-triggered re-render loop (fiber state preserved across renders)
+            setRequestRender(() => {
+                const instances: Map<Widget, { fiber: unknown }> =
+                    (globalThis as Record<string, any>).__termuijs_instances
+                const rootInstance = instances?.get(rootWidget) as any
+                const newRoot: Widget = rootInstance
+                    ? reRenderComponent(rootInstance)
+                    : reconcile(element)
+                rootBox.clearChildren()
+                rootBox.addChild(newRoot)
+                rootBox.markDirty()
+                rootWidget = newRoot
+                app.screen.invalidate()
+                app.requestRender()
+            })
+
+            // Dispatch key events to useInput handlers via the fiber tree
+            app.events.on('key', (event: unknown) => {
+                const instances: Map<Widget, { fiber: unknown }> =
+                    (globalThis as Record<string, any>).__termuijs_instances
+                const rootInstance = instances?.get(rootWidget) as any
+                if (rootInstance?.fiber) {
+                    for (const handler of collectInputHandlers(rootInstance.fiber)) {
+                        handler(event as never)
+                    }
+                }
+            })
+
+            registerFocusables(rootBox)
+        } else {
+            // ── Widget demo: mount the RootWidget directly ──
+            const widget = factory!()
+            app = new App(widget, opts)
+            registerFocusables(widget)
+        }
 
         app.mount().catch(console.error)
 
@@ -176,6 +234,10 @@ export function BrowserPreview({
         return () => {
             cancelAnimationFrame(rafId)
             ro.disconnect()
+            if (isJsx) {
+                setRequestRender(() => {}) // detach stale re-render closure before teardown
+                unmountAll()
+            }
             app.unmount()
             term.dispose()
         }
