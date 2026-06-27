@@ -17,6 +17,32 @@ export interface RegistryEntry {
   category: 'display' | 'input' | 'feedback' | 'layout' | 'data' | 'hook' | 'template';
   description: string;
   tags: string[];
+  files: Array<{ path: string; content: string }>;
+  dependencies: string[];
+}
+
+/**
+ * Rewrite relative import specifiers ('./x.js', '../y.js') to the component's
+ * published package, so copied source resolves symbols from the npm package
+ * instead of sibling files. External specifiers (@termuijs/core, etc.) are
+ * left untouched.
+ */
+export function rewriteImports(content: string, pkg: string): string {
+  return content.replace(/(from\s+|import\s+)(['"])(\.\.?\/[^'"]+)\2/g,
+    (_m, kw, q) => `${kw}${q}${pkg}${q}`);
+}
+
+/**
+ * Collect the unique, sorted set of @termuijs/* package specifiers imported by
+ * a source file. Run AFTER rewriteImports so relative imports already resolve
+ * to their package. These become the component's install dependencies.
+ */
+export function collectDeps(content: string): string[] {
+  const re = /from\s+['"](@termuijs\/[a-z-]+)['"]/g;
+  const deps = new Set<string>();
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(content)) !== null) deps.add(m[1]!);
+  return [...deps].sort();
 }
 
 export function toSlug(name: string): string {
@@ -119,6 +145,7 @@ export function buildRegistryEntries(): RegistryEntry[] {
       if (['Widget', 'Screen', 'Box'].includes(name) && !path.includes('packages/ui/')) continue;
       const slug = toSlug(name);
       const pkg  = detectPackage(path);
+      const rewritten = rewriteImports(content, pkg);
       entries.push({
         name,
         slug,
@@ -126,6 +153,8 @@ export function buildRegistryEntries(): RegistryEntry[] {
         category: detectCategory(path),
         description: extractDescription(content, name),
         tags: [detectCategory(path), slug],
+        files: [{ path: `${slug}.ts`, content: rewritten }],
+        dependencies: collectDeps(rewritten),
       });
     }
   }

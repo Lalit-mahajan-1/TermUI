@@ -1,5 +1,34 @@
 import { describe, it, expect } from 'vitest';
-import { buildRegistryEntries, toSlug, detectCategory } from './build-registry.js';
+import { buildRegistryEntries, toSlug, detectCategory, rewriteImports, collectDeps } from './build-registry.js';
+
+describe('rewriteImports', () => {
+  it('rewrites relative imports to the package specifier', () => {
+    const src = [
+      `import { Widget } from '../base/Widget.js';`,
+      `import { TableState } from './TableState.js';`,
+      `import { Screen } from '@termuijs/core';`,
+    ].join('\n');
+    const out = rewriteImports(src, '@termuijs/widgets');
+    expect(out).toContain(`from '@termuijs/widgets'`);
+    expect(out).not.toContain(`../base/Widget.js`);
+    expect(out).not.toContain(`./TableState.js`);
+    expect(out).toContain(`from '@termuijs/core'`);
+  });
+});
+
+describe('collectDeps', () => {
+  it('collects unique sorted @termuijs/* specifiers', () => {
+    const src = [
+      `import { Widget } from '@termuijs/widgets';`,
+      `import { Screen } from '@termuijs/core';`,
+      `import { timerPoolSubscribe } from '@termuijs/motion';`,
+      `import { Widget as W2 } from '@termuijs/widgets';`,
+    ].join('\n');
+    expect(collectDeps(src)).toEqual([
+      '@termuijs/core', '@termuijs/motion', '@termuijs/widgets',
+    ]);
+  });
+});
 
 describe('registry build utilities', () => {
   it('toSlug converts PascalCase to kebab-case', () => {
