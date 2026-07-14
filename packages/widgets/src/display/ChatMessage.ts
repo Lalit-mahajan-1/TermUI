@@ -52,6 +52,7 @@ export class ChatMessage extends Widget {
     private _content: string;
     private _timestamp?: Date;
     private _badgeWidth: number;
+    private _formattedTimestamp = '';
 
     private _wrappedLines: string[] = [];
     private _cachedContentWidth = -1;
@@ -62,6 +63,16 @@ export class ChatMessage extends Widget {
         this._badgeWidth = stringWidth(ROLE_CONFIG[this._role].badge);
         this._content = options.content;
         this._timestamp = options.timestamp;
+
+        if (this._timestamp) {
+            this._formattedTimestamp = this._timestamp.toLocaleTimeString('en-GB', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false,
+            });
+        }
+
         this.focusable = false;
         this.setA11y({
             role: 'log',
@@ -71,7 +82,7 @@ export class ChatMessage extends Widget {
 
     /** Update the message content and mark dirty. */
     setContent(content: string): void {
-        if (this._content === content) return; 
+        if (this._content === content) return;
         this._content = content;
         this._wrappedLines = [];
         this._cachedContentWidth = -1;
@@ -106,18 +117,12 @@ export class ChatMessage extends Widget {
         screen.writeString(x, y, config.badge, badgeAttrs);
 
         if (this._timestamp) {
-            const ts = this._timestamp.toLocaleTimeString('en-GB', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false,
-            });
-            const tsWidth = stringWidth(ts);
+            const tsWidth = stringWidth(this._formattedTimestamp);
             const tsX = x + width - tsWidth;
             // Only draw if it fits without overlapping the badge
             if (tsX > x + this._badgeWidth) {
                 const dimAttrs = { ...baseAttrs, dim: true };
-                screen.writeString(tsX, y, ts, dimAttrs);
+                screen.writeString(tsX, y, this._formattedTimestamp, dimAttrs);
             }
         }
 
@@ -134,7 +139,7 @@ export class ChatMessage extends Widget {
                     : [];
             this._cachedContentWidth = contentWidth;
         }
-        
+
         const lines = this._wrappedLines;
         const maxContentRows = height - 1;
 
